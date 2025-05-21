@@ -132,6 +132,25 @@ size_t sccCount(DexGraph& g) {
         boost::get(&ClassVertex::classId, g)));
 }
 
+// helper function to divide
+std::vector<std::unordered_set<DexGraph::vertex_descriptor>> scc(DexGraph& g) {
+
+    std::vector<int> component(boost::num_vertices(g));
+    int num = boost::strong_components(g, make_iterator_property_map(component.begin(),
+        boost::get(&ClassVertex::classId, g)));
+
+    std::vector<std::unordered_set<DexGraph::vertex_descriptor>> res(num);
+    
+    auto map = boost::get(&ClassVertex::classId, g);
+    auto [vi, vi_end] = boost::vertices(g);
+    for (auto it = vi; it != vi_end; ++it) {
+        const auto idx = map[*it];
+        const auto compIdx = component[idx];
+        res[compIdx].insert(*it);
+    }
+    return res;
+}
+
 std::vector<DexEdge> strongBridges(DexGraph& g) {
     std::vector<DexEdge> res{};
     DexGraph::edge_iterator ei, ei_end;
@@ -147,21 +166,100 @@ std::vector<DexEdge> strongBridges(DexGraph& g) {
     return res;
 }
 
-std::vector<DexGraph> twoConnectedSubgraphs(DexGraph& g, size_t m0) {
+void removeEdges(DexGraph& g, std::unordered_set<ClassVertex> const& s) {
+    auto [ei, ei_end] = boost::edges(g);
+    for (auto it = ei; ei != ei_end; ++it) {
+        const auto v1 = boost::source(*it, g);
+        const auto v2 = boost::target(*it, g);
+        if (s.contains(g[v1]) && s.contains(g[v2]))
+            continue;
+        boost::remove_edge(*it, g);
+    }
+}
+
+std::unordered_set<DexGraph::vertex_descriptor> disconnectScc(DexGraph& g,
+    std::vector<std::unordered_set<DexGraph::vertex_descriptor>> const& comps)
+{
+    std::unordered_set<DexGraph::vertex_descriptor> res;
+    auto [ei, ei_end] = boost::edges(g);
+    for (auto it = ei; ei != ei_end; ++it) {
+        const auto v1 = boost::source(*it, g);
+        const auto v2 = boost::target(*it, g);
+        bool isSame = false;
+        for (const auto& s : comps) {
+            if (s.contains(v1) && s.contains(v2)) {
+                isSame = true;
+                break;
+            }
+        }
+        if (!isSame) {
+            boost::remove_edge(*it, g);
+            res.insert(v1);
+            res.insert(v2);
+        }
+    }
+    return res;
+}
+
+std::vector<DexGraph> twoConnInternal(DexGraph& g, size_t m0,
+    std::vector<DexGraph::vertex_descriptor>& vertices)
+{
+    std::vector<DexGraph> res;
+    const size_t threshold = std::round(2 * std::sqrt(m0));
+    const size_t delta = std::round(std::sqrt(m0));
+    auto [vi, vi_end] = boost::vertices(g);
+    auto [ei, ei_end] = boost::edges(g);
+    auto map = boost::get(&ClassVertex::classId, g);
+
+    while (!vertices.empty() && std::distance(ei, ei_end) > threshold) {
+        auto v = vertices.back();
+        vertices.pop_back();
+        auto start = g[v];
+        auto s = oneEdgeOut(g, start, delta);
+        if (!s.empty())
+            removeEdges(g, s);
+        // recompute iters since they may be invalidated at this point
+        boost::tie(ei, ei_end) = boost::edges(g);
+    }
+    auto comps = scc(g);
+    for (const auto& s : comps) {
+        auto bridges = strongBridges(g);
+        for (const auto& b : bridges) {
+            const auto v1 = boost::source(b, g);
+            const auto v2 = boost::target(b, g);
+            if (s.contains(v1) && s.contains(v2)) {
+                boost::remove_edge(b, g);
+                break;
+            }
+        }
+        auto compsNew = scc(g);
+        auto removed = disconnectScc(g, compsNew);
+        for (const auto& s_ : compsNew) {
+            auto s__ = s_;
+            std::erase_if(s__, [&removed](DexGraph::vertex_descriptor v) {
+                return !removed.contains(v);
+            });
+            std::vector<DexGraph::vertex_descriptor> v(s__.begin(), s__.end());
+            auto gNew = inducedSubgraph(g, s_);
+            auto tmp = twoConnInternal(gNew, m0, v);
+            std::copy(tmp.begin(), tmp.end(), std::back_inserter(res));
+        }
+    }
+    return res;
+}
+
+std::vector<DexGraph> twoConnectedSubgraphs(DexGraph g) {
     std::vector<DexGraph> res;
     if (strongBridges(g).empty()) {
         res = { g };
         return res;
     }
-
-    const auto threshold = std::round(2 * std::sqrt(m0));
     auto [vi, vi_end] = boost::vertices(g);
     auto [ei, ei_end] = boost::edges(g);
     std::vector<DexGraph::vertex_descriptor> vertices(vi, vi_end);
-    while (!vertices.empty() && std::distance(ei, ei_end) > threshold) {
 
-    }
-    return res;
+    const size_t m0 = std::distance(ei, ei_end);
+    return twoConnInternal(g, m0, vertices);
 }
 
 } // namespace aid::graph

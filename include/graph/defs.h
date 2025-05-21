@@ -2,6 +2,7 @@
 #define INCLUDE_GRAPH_DEFS_H_
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/copy.hpp>
 #include <boost/graph/filtered_graph.hpp>
 #include <boost/graph/graph_traits.hpp>
 
@@ -21,7 +22,10 @@ using Vertex = boost::graph_traits<Graph<T>>::vertex_descriptor;
 template<typename G, typename N, typename V = G::vertex_descriptor>
 auto inducedSubgraph(G& g, N&& nodes) {
     std::function pred{[nodes](V v) { return nodes.contains(v); }};
-    return boost::filtered_graph(g, boost::keep_all{}, pred);
+    G res;
+    auto tmp = boost::filtered_graph(g, boost::keep_all{}, pred);
+    boost::copy_graph(tmp, res);
+    return res;
 }
 
 }
