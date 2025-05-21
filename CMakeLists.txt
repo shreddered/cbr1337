@@ -20,6 +20,9 @@ add_executable(aid
     ${CMAKE_CURRENT_LIST_DIR}/src/dex/lookup.c
     # obfuscation detection
     ${CMAKE_CURRENT_LIST_DIR}/src/obfus.cpp
+    # graph stuff
+    ${CMAKE_CURRENT_LIST_DIR}/src/graph/conn.cpp
+    #${CMAKE_CURRENT_LIST_DIR}/src/graph/dalvik.cpp
     # main
     ${CMAKE_CURRENT_LIST_DIR}/src/main.cpp
 )

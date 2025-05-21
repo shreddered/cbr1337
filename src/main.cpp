@@ -1,4 +1,5 @@
 #include "dex/disasm.h"
+#include "graph/dalvik.h"
 #include "obfus.h"
 
 #include <LIEF/LIEF.hpp>
@@ -18,49 +19,18 @@
 #include <utility>
 #include <vector>
 
-struct ClassVertex {
-    size_t classId;
-    std::string name = "";
-};
+using namespace aid::graph;
 
-using Graph = boost::adjacency_list<boost::hash_setS, boost::vecS, boost::undirectedS, ClassVertex>;
-
-// traits
-template <> struct boost::graph::internal_vertex_name<ClassVertex> {
-    struct type {
-        using result_type = size_t;
-        result_type const& operator()(ClassVertex const& bundle) const {
-            return bundle.classId;
-        }
-    };
-};
-
-template <> struct boost::graph::internal_vertex_constructor<ClassVertex> {
-    struct type {
-    private:
-        using extract_name_type = typename internal_vertex_name<ClassVertex>::type;
-
-        using vertex_name_type = typename remove_cv<typename remove_reference<
-            typename extract_name_type::result_type>::type>::type;
-
-    public:
-        using argument_type = vertex_name_type;
-        using result_type = ClassVertex;
-
-        result_type operator()(const vertex_name_type& id) const {
-            return {id};
-        }
-    };
-};
-
-void addRelation(const LIEF::DEX::Class* from, const LIEF::DEX::Class* to, Graph& g) {
+void addRelation(const LIEF::DEX::Class* from, const LIEF::DEX::Class* to,
+    aid::graph::DexGraph& g)
+{
     auto src = boost::add_vertex(ClassVertex{from->index(), from->fullname()}, g);
     auto dst = boost::add_vertex(ClassVertex{to->index(), to->fullname()}, g);
     boost::add_edge(src, dst, g);
 }
 
 void processMethod(std::unique_ptr<LIEF::DEX::File> const &dex, const std::unordered_set<size_t> imp,
-    const LIEF::DEX::Method& mtd, Graph& g)
+    const LIEF::DEX::Method& mtd, aid::graph::DexGraph& g)
 {
     const auto& code = mtd.bytecode();
     if (code.empty())
@@ -155,10 +125,10 @@ std::unordered_set<size_t> importedClasses(const std::unique_ptr<LIEF::DEX::File
     return res;
 }
 
-Graph createCallGraph(std::unique_ptr<LIEF::DEX::File> const &dex) {
+aid::graph::DexGraph createCallGraph(std::unique_ptr<LIEF::DEX::File> const &dex) {
     // first simple try
     auto imported = importedClasses(dex);
-    Graph g;
+    aid::graph::DexGraph g;
     std::cout << "num of v: " << boost::num_vertices(g) << std::endl;
 
     auto classes = dex->classes();
@@ -216,3 +186,4 @@ int main(int argc, char *argv[]) {
     }
     return 0;
 }
+
