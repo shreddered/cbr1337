@@ -7,6 +7,8 @@
 #include <boost/graph/strong_components.hpp>
 #include <boost/functional.hpp>
 
+#include <cmath>
+
 namespace std {
 
 template<>
@@ -145,15 +147,20 @@ std::vector<DexEdge> strongBridges(DexGraph& g) {
     return res;
 }
 
-std::vector<DexGraph> twoConnectedSubgraphs(DexGraph& g) {
+std::vector<DexGraph> twoConnectedSubgraphs(DexGraph& g, size_t m0) {
     std::vector<DexGraph> res;
     if (strongBridges(g).empty()) {
         res = { g };
         return res;
     }
 
+    const auto threshold = std::round(2 * std::sqrt(m0));
     auto [vi, vi_end] = boost::vertices(g);
+    auto [ei, ei_end] = boost::edges(g);
     std::vector<DexGraph::vertex_descriptor> vertices(vi, vi_end);
+    while (!vertices.empty() && std::distance(ei, ei_end) > threshold) {
+
+    }
     return res;
 }
 
