@@ -43,9 +43,10 @@ bool XorDetector::detect() const {
     return m_det;
 }
 
-bool isAbnormal(const LIEF::DEX::Method& m,
-    std::vector<std::unique_ptr<IAnomalyDetector>>& d)
+bool isAbnormal(const LIEF::DEX::Method& m)
 {
+    std::vector<std::unique_ptr<IAnomalyDetector>> d;
+    d.emplace_back(new XorDetector());
     // 1) check if method has code
     const auto& code = m.bytecode();
     if (code.empty())

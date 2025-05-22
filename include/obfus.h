@@ -40,9 +40,7 @@ private:
 
 // called per-method
 // m - method to be scanned
-// d - std::vector of IAnomalyDetector implemetations
-bool isAbnormal(const LIEF::DEX::Method& m,
-    std::vector<std::unique_ptr<IAnomalyDetector>>& d);
+bool isAbnormal(const LIEF::DEX::Method& m);
 
 } // namespace aid
 

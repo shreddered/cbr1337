@@ -8,7 +8,7 @@
 
 namespace aid::graph {
 
-std::vector<DexGraph> twoConnectedSubgraphs(DexGraph& g);
+std::vector<DexGraph> twoConnectedSubgraphs(DexGraph g);
 
 } // namespace aid::graph
 
